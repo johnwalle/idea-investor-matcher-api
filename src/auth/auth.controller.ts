@@ -7,10 +7,11 @@ import { ResendOtpDto } from './dto/resend-otp.dto';
 import { UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Req } from '@nestjs/common';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -35,11 +36,22 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt-refresh'))
   @Post('refresh')
   refresh(@Req() req) {
-  const user = req.user;
-  const refreshToken = req.body.refresh_token;
+    const user = req.user;
+    const refreshToken = req.body.refresh_token;
 
-  return this.authService.refreshTokens(user.userId, refreshToken);
+    return this.authService.refreshTokens(user.userId, refreshToken);
+  }
+  @Post('forget-password')
+  forgetPassword(@Body() dto: { email: string }) {
+    return this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('reset-password')
+async resetPassword(@Body() dto: ResetPasswordDto) {
+  return this.authService.resetPassword(
+    dto.email,
+    dto.token,
+    dto.newPassword,
+  );
 }
-
-
 }
