@@ -69,6 +69,13 @@ model Idea {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  @@index([industry])
+  @@index([fundingAmount])
+  @@index([stage])
+  @@index([region])
+  @@index([createdAt])
+  @@index([industry, fundingAmount])
+
   founder       User     @relation(fields: [founderId], references: [id])
 }
 
