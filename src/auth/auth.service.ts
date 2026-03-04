@@ -164,6 +164,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       role: user.role,
+      isOnboarded: user.isOnboarded,
     },
     access_token: tokens.accessToken,
     refresh_token: tokens.refreshToken,

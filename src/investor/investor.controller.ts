@@ -7,7 +7,7 @@ import {
   UseGuards,
   Req,
   Query,
-  Delete
+  Delete,
 } from '@nestjs/common';
 import { InvestorService } from './investor.service';
 import { InvestorOnboardingDto } from './dto/investor-onboarding.dto';
