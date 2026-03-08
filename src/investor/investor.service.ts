@@ -200,9 +200,6 @@ async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
     });
 
     if (!user) throw new ForbiddenException('User not found');
-    if (user.role !== Role.INVESTOR) {
-      throw new ForbiddenException('Only investors can view ideas');
-    }
 
     const idea = await this.prisma.idea.findUnique({
       where: { id: ideaId },
@@ -234,9 +231,16 @@ async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
       },
     });
 
+    const founder = await this.prisma.user.findUnique({
+      where: { id: idea.founderId },
+    });
+
+    if (!founder) throw new ForbiddenException('Founder not found');
+
     return {
       ...idea,
       isInterested: !!interest,
+      email: founder.email,
     };
   }
 
@@ -294,7 +298,19 @@ async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
         },
       });
 
-      return { message: 'Marked as interested' };
+      const startup = await this.prisma.idea.findUnique({
+        where: { id: ideaId },
+      });
+
+      if (!startup) throw new ForbiddenException('Startup not found');
+
+      const founder = await this.prisma.user.findUnique({
+        where: { id: startup.founderId },
+      });
+
+      if (!founder) throw new ForbiddenException('Founder not found');
+
+      return { message: 'Marked as interested', email: founder.email };
     } catch (error) {
       if (error.code !== 'P2002') {
         throw error;
