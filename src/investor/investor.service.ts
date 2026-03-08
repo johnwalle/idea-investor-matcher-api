@@ -77,6 +77,35 @@ export class InvestorService {
     };
   }
 
+  // investor.service.ts (add these two methods)
+
+async getPreferences(userId: string) {
+  const preferences = await this.prisma.investorProfile.findUnique({
+    where: { userId },
+  });
+
+  if (!preferences) {
+    throw new NotFoundException('Preferences not found, please complete onboarding first');
+  }
+
+  return preferences;
+}
+
+async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
+  const preferences = await this.prisma.investorProfile.findUnique({
+    where: { userId },
+  });
+
+  if (!preferences) {
+    throw new NotFoundException('Preferences not found, please complete onboarding first');
+  }
+
+  return this.prisma.investorProfile.update({
+    where: { userId },
+    data: { ...dto },
+  });
+}
+
   // --------------------------------------------------
   // GET IDEAS (WITH FILTERS)
   // --------------------------------------------------

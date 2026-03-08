@@ -74,7 +74,7 @@ describe('UsersController', () => {
 
   it('should update a user', async () => {
     const updatedUser = await controller.update('uuid-1', { name: 'Alice Updated' });
-    expect(updatedUser.name).toBe('Alice Updated');
+    expect(updatedUser.fullName).toBe('Alice Updated');
     expect(mockUsersService.update).toHaveBeenCalledWith('uuid-1', { name: 'Alice Updated' });
   });
 

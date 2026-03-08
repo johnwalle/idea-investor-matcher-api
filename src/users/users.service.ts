@@ -6,7 +6,7 @@ import { QueryUsersDto } from './dto/query-users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findAll(query: QueryUsersDto) {
     return this.prisma.user.findMany({
@@ -20,6 +20,13 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
     if (!user) {
@@ -28,6 +35,7 @@ export class UsersService {
 
     return user;
   }
+
 
   async update(id: string, data: UpdateUserDto) {
     await this.findOne(id); // ensure exists
@@ -54,4 +62,52 @@ export class UsersService {
       where: { id },
     });
   }
+
+  // src/modules/users/users.service.ts (add these two methods)
+
+async updateFullName(id: string, fullName: string) {
+  const user = await this.prisma.user.findUnique({ where: { id } });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  return this.prisma.user.update({
+    where: { id },
+    data: { fullName },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      profilePic: true,
+      createdAt: true,
+    },
+  });
+}
+
+async updateProfilePic(id: string, profilePicUrl: string, profilePicId: string) {
+  const user = await this.prisma.user.findUnique({ where: { id } });
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  return this.prisma.user.update({
+    where: { id },
+    data: {
+      profilePic: profilePicUrl,
+      profilePicId: profilePicId,
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      profilePic: true,
+      createdAt: true,
+    },
+  });
+}
+
 }
