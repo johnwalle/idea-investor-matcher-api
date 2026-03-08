@@ -12,6 +12,8 @@ model User {
   fullName        String
   email           String   @unique
   passwordHash    String?
+  profilePic      String?
+  profilePicId    String?
   provider        AuthProvider
 
   role            Role
