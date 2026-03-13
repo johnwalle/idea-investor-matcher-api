@@ -11,249 +11,252 @@ import { GetIdeasQueryDto } from './dto/get-ideas-query.dto';
 import { Role } from '../common/enums/role.enum';
 import { Redis } from 'ioredis';
 import { Industry, Prisma, Stage } from '@prisma/client';
+import { ChatService } from 'src/chat/chat.service';
 
 @Injectable()
 export class InvestorService {
-constructor(
-  private prisma: PrismaService,
-  @Inject('REDIS_CLIENT') private redis: Redis,
-) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly chatService: ChatService,
+    @Inject('REDIS_CLIENT') private redis: Redis,
+  ) { }
 
   // --------------------------------------------------
   // INVESTOR ONBOARDING
   // --------------------------------------------------
-async onboarding(userId: string, dto: InvestorOnboardingDto) {
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-  });
-
-  if (!user) throw new ForbiddenException('User not found');
-
-  if (user.role !== Role.INVESTOR) {
-    throw new ForbiddenException('Only investors can complete onboarding');
-  }
-
-  if (dto.minFunding >= dto.maxFunding) {
-    throw new BadRequestException(
-      'Minimum funding must be less than maximum funding',
-    );
-  }
-
-  const existingProfile = await this.prisma.investorProfile.findUnique({
-    where: { userId },
-  });
-
-  let profile;
-
-  if (existingProfile) {
-    profile = await this.prisma.investorProfile.update({
-      where: { userId },
-      data: {
-        preferredStages: dto.preferredStages,
-        industries: dto.industries,
-        minFunding: dto.minFunding,
-        maxFunding: dto.maxFunding,
-        investmentThesis: dto.investmentThesis,
-      },
-    });
-  } else {
-    profile = await this.prisma.investorProfile.create({
-      data: {
-        userId,
-        preferredStages: dto.preferredStages,
-        industries: dto.industries,
-        minFunding: dto.minFunding,
-        maxFunding: dto.maxFunding,
-        investmentThesis: dto.investmentThesis,
-      },
-    });
-
-    await this.prisma.user.update({
+  async onboarding(userId: string, dto: InvestorOnboardingDto) {
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      data: { isOnboarded: true },
     });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    if (user.role !== Role.INVESTOR) {
+      throw new ForbiddenException('Only investors can complete onboarding');
+    }
+
+    if (dto.minFunding >= dto.maxFunding) {
+      throw new BadRequestException(
+        'Minimum funding must be less than maximum funding',
+      );
+    }
+
+    const existingProfile = await this.prisma.investorProfile.findUnique({
+      where: { userId },
+    });
+
+    let profile;
+
+    if (existingProfile) {
+      profile = await this.prisma.investorProfile.update({
+        where: { userId },
+        data: {
+          preferredStages: dto.preferredStages,
+          industries: dto.industries,
+          minFunding: dto.minFunding,
+          maxFunding: dto.maxFunding,
+          investmentThesis: dto.investmentThesis,
+        },
+      });
+    } else {
+      profile = await this.prisma.investorProfile.create({
+        data: {
+          userId,
+          preferredStages: dto.preferredStages,
+          industries: dto.industries,
+          minFunding: dto.minFunding,
+          maxFunding: dto.maxFunding,
+          investmentThesis: dto.investmentThesis,
+        },
+      });
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { isOnboarded: true },
+      });
+    }
+
+    // Cache investor preferences in Redis (TTL: 7 days)
+    await this.redis.set(
+      `investor:preferences:${userId}`,
+      JSON.stringify({
+        preferredStages: dto.preferredStages,
+        industries: dto.industries,
+        minFunding: dto.minFunding,
+        maxFunding: dto.maxFunding,
+      }),
+      'EX',
+      60 * 60 * 24 * 7,
+    );
+
+    return {
+      message: 'Investor onboarding completed successfully',
+      profile,
+    };
   }
-
-  // Cache investor preferences in Redis (TTL: 7 days)
-  await this.redis.set(
-    `investor:preferences:${userId}`,
-    JSON.stringify({
-      preferredStages: dto.preferredStages,
-      industries: dto.industries,
-      minFunding: dto.minFunding,
-      maxFunding: dto.maxFunding,
-    }),
-    'EX',
-    60 * 60 * 24 * 7,
-  );
-
-  return {
-    message: 'Investor onboarding completed successfully',
-    profile,
-  };
-}
 
   // investor.service.ts (add these two methods)
 
-async getPreferences(userId: string) {
-  const preferences = await this.prisma.investorProfile.findUnique({
-    where: { userId },
-  });
+  async getPreferences(userId: string) {
+    const preferences = await this.prisma.investorProfile.findUnique({
+      where: { userId },
+    });
 
-  if (!preferences) {
-    throw new NotFoundException('Preferences not found, please complete onboarding first');
+    if (!preferences) {
+      throw new NotFoundException('Preferences not found, please complete onboarding first');
+    }
+
+    return preferences;
   }
 
-  return preferences;
-}
+  async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
+    const preferences = await this.prisma.investorProfile.findUnique({
+      where: { userId },
+    });
 
-async updatePreferences(userId: string, dto: InvestorOnboardingDto) {
-  const preferences = await this.prisma.investorProfile.findUnique({
-    where: { userId },
-  });
+    if (!preferences) {
+      throw new NotFoundException('Preferences not found, please complete onboarding first');
+    }
 
-  if (!preferences) {
-    throw new NotFoundException('Preferences not found, please complete onboarding first');
+    return this.prisma.investorProfile.update({
+      where: { userId },
+      data: { ...dto },
+    });
   }
-
-  return this.prisma.investorProfile.update({
-    where: { userId },
-    data: { ...dto },
-  });
-}
 
   // --------------------------------------------------
   // GET IDEAS (WITH FILTERS)
   // --------------------------------------------------
   async getIdeas(userId: string, query: GetIdeasQueryDto) {
-  const user = await this.prisma.user.findUnique({
-    where: { id: userId },
-  });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-  if (!user) throw new ForbiddenException('User not found');
-  if (user.role !== Role.INVESTOR) {
-    throw new ForbiddenException('Only investors can view startup ideas');
-  }
+    if (!user) throw new ForbiddenException('User not found');
+    if (user.role !== Role.INVESTOR) {
+      throw new ForbiddenException('Only investors can view startup ideas');
+    }
 
-  // Fetch cached preferences from Redis
-  let preferences: {
-    preferredStages?: string[];
-    industries?: string[];
-    minFunding?: number;
-    maxFunding?: number;
-  } = {};
+    // Fetch cached preferences from Redis
+    let preferences: {
+      preferredStages?: string[];
+      industries?: string[];
+      minFunding?: number;
+      maxFunding?: number;
+    } = {};
 
-  const cached = await this.redis.get(`investor:preferences:${userId}`);
-  if (cached) {
-    preferences = JSON.parse(cached);
-  }
+    const cached = await this.redis.get(`investor:preferences:${userId}`);
+    if (cached) {
+      preferences = JSON.parse(cached);
+    }
 
-  const {
-    industry,
-    stage,
-    minFunding,
-    maxFunding,
-    search,
-    region,
-    page = 1,
-    limit = 10,
-    sortBy = 'createdAt',
-    order = 'desc',
-  } = query;
+    const {
+      industry,
+      stage,
+      minFunding,
+      maxFunding,
+      search,
+      region,
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      order = 'desc',
+    } = query;
 
-  const skip = (page - 1) * limit;
-  const where: Prisma.IdeaWhereInput = {};
+    const skip = (page - 1) * limit;
+    const where: Prisma.IdeaWhereInput = {};
 
-  // Industry: query param overrides, else use preferences array
-  if (industry) {
-    where.industry = industry;
-  } else if (preferences.industries?.length) {
-// Industry
-if (industry) {
-  where.industry = industry;
-} else if (preferences.industries?.length) {
-  where.industry = { in: preferences.industries as Industry[] };
-}
-  }
+    // Industry: query param overrides, else use preferences array
+    if (industry) {
+      where.industry = industry;
+    } else if (preferences.industries?.length) {
+      // Industry
+      if (industry) {
+        where.industry = industry;
+      } else if (preferences.industries?.length) {
+        where.industry = { in: preferences.industries as Industry[] };
+      }
+    }
 
-  // Stage: query param overrides, else use preferences array
-  if (stage) {
-    where.stage = stage;
-  } else if (preferences.preferredStages?.length) {
-// Industry
-if (industry) {
-  where.industry = industry;
-} else if (preferences.industries?.length) {
+    // Stage: query param overrides, else use preferences array
+    if (stage) {
+      where.stage = stage;
+    } else if (preferences.preferredStages?.length) {
+      // Industry
+      if (industry) {
+        where.industry = industry;
+      } else if (preferences.industries?.length) {
 
-// Stage
-if (stage) {
-  where.stage = stage;
-} else if (preferences.preferredStages?.length) {
-  where.stage = { in: preferences.preferredStages as Stage[] };
-}}
-  }
+        // Stage
+        if (stage) {
+          where.stage = stage;
+        } else if (preferences.preferredStages?.length) {
+          where.stage = { in: preferences.preferredStages as Stage[] };
+        }
+      }
+    }
 
-  if (region) where.region = region;
+    if (region) where.region = region;
 
-  // Funding: query param overrides, else fall back to preferences
-  const resolvedMin = minFunding ?? preferences.minFunding;
-  const resolvedMax = maxFunding ?? preferences.maxFunding;
+    // Funding: query param overrides, else fall back to preferences
+    const resolvedMin = minFunding ?? preferences.minFunding;
+    const resolvedMax = maxFunding ?? preferences.maxFunding;
 
-  if (resolvedMin || resolvedMax) {
-    where.fundingAmount = {
-      ...(resolvedMin && { gte: resolvedMin }),
-      ...(resolvedMax && { lte: resolvedMax }),
+    if (resolvedMin || resolvedMax) {
+      where.fundingAmount = {
+        ...(resolvedMin && { gte: resolvedMin }),
+        ...(resolvedMax && { lte: resolvedMax }),
+      };
+    }
+
+    // Search: nest inside AND to avoid overwriting other filters
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { startupName: { contains: search, mode: 'insensitive' } },
+            { pitchTitle: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+
+    const [ideas, total] = await Promise.all([
+      this.prisma.idea.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          [sortBy]: order,
+        },
+        select: {
+          id: true,
+          startupName: true,
+          pitchTitle: true,
+          industry: true,
+          stage: true,
+          fundingAmount: true,
+          equityOffered: true,
+          region: true,
+          pitchDeckUrl: true,
+          createdAt: true,
+          viewsCount: true,
+          interestedCount: true,
+        },
+      }),
+      this.prisma.idea.count({ where }),
+    ]);
+
+    return {
+      data: ideas,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
-
-  // Search: nest inside AND to avoid overwriting other filters
-  if (search) {
-    where.AND = [
-      {
-        OR: [
-          { startupName: { contains: search, mode: 'insensitive' } },
-          { pitchTitle: { contains: search, mode: 'insensitive' } },
-        ],
-      },
-    ];
-  }
-
-  const [ideas, total] = await Promise.all([
-    this.prisma.idea.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: {
-        [sortBy]: order,
-      },
-      select: {
-        id: true,
-        startupName: true,
-        pitchTitle: true,
-        industry: true,
-        stage: true,
-        fundingAmount: true,
-        equityOffered: true,
-        region: true,
-        pitchDeckUrl: true,
-        createdAt: true,
-        viewsCount: true,
-        interestedCount: true,
-      },
-    }),
-    this.prisma.idea.count({ where }),
-  ]);
-
-  return {
-    data: ideas,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-}
   // --------------------------------------------------
   // GET SINGLE IDEA (REGISTER VIEW + isInterested)
   // --------------------------------------------------
@@ -365,13 +368,16 @@ if (stage) {
         where: { id: ideaId },
       });
 
-      if (!startup) throw new ForbiddenException('Startup not found');
+      if (!startup) throw new NotFoundException('Startup not found');
 
       const founder = await this.prisma.user.findUnique({
         where: { id: startup.founderId },
       });
 
-      if (!founder) throw new ForbiddenException('Founder not found');
+      if (!founder) throw new NotFoundException('Founder not found');
+
+      // auto-create chat room between investor and entrepreneur
+      await this.chatService.createRoom(userId, ideaId);
 
       return { message: 'Marked as interested', email: founder.email };
     } catch (error) {
