@@ -24,17 +24,23 @@ model User {
   otpHash         String?
   otpExpiresAt    DateTime?
   refreshToken    String?
-  resetPasswordToken String?
+  resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
   // Relations
-  investorProfile InvestorProfile?
-  ideas           Idea[]              @relation("FounderIdeas")
-  ideaViews       IdeaView[]          @relation("InvestorViews")
-  ideaInterests   IdeaInterest[]      @relation("InvestorInterests")
+  investorProfile  InvestorProfile?
+  ideas            Idea[]              @relation("FounderIdeas")
+  ideaViews        IdeaView[]          @relation("InvestorViews")
+  ideaInterests    IdeaInterest[]      @relation("InvestorInterests")
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // Chat relations
+  investorRooms    ChatRoom[]          @relation("InvestorRooms")
+  entrepreneurRooms ChatRoom[]         @relation("EntrepreneurRooms")
+  messages         Message[]
+  notifications    Notification[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([role])
   @@index([isActive])
@@ -75,7 +81,7 @@ model Idea {
   pitchDeckUrl  String?
   pitchDeckId   String?
 
-  // Cached counters (IMPORTANT for performance)
+  // Cached counters
   viewsCount        Int      @default(0)
   interestedCount   Int      @default(0)
 
@@ -86,8 +92,8 @@ model Idea {
   founder       User            @relation("FounderIdeas", fields: [founderId], references: [id], onDelete: Cascade)
   views         IdeaView[]
   interests     IdeaInterest[]
+  chatRooms     ChatRoom[]
 
-  // Indexing for filtering & scaling
   @@index([industry])
   @@index([fundingAmount])
   @@index([stage])
@@ -108,7 +114,6 @@ model IdeaView {
   idea        Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   investor    User     @relation("InvestorViews", fields: [investorId], references: [id], onDelete: Cascade)
 
-  // Named composite unique key (VERY IMPORTANT)
   @@unique([ideaId, investorId], name: "ideaId_investorId_view_unique")
 
   @@index([ideaId])
@@ -125,11 +130,61 @@ model IdeaInterest {
   idea        Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
   investor    User     @relation("InvestorInterests", fields: [investorId], references: [id], onDelete: Cascade)
 
-  // Named composite unique key
   @@unique([ideaId, investorId], name: "ideaId_investorId_interest_unique")
 
   @@index([ideaId])
   @@index([investorId])
+  @@index([createdAt])
+}
+
+model ChatRoom {
+  id             String    @id @default(uuid())
+  ideaId         String
+  investorId     String
+  entrepreneurId String
+  createdAt      DateTime  @default(now())
+
+  idea           Idea      @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  investor       User      @relation("InvestorRooms", fields: [investorId], references: [id], onDelete: Cascade)
+  entrepreneur   User      @relation("EntrepreneurRooms", fields: [entrepreneurId], references: [id], onDelete: Cascade)
+  messages       Message[]
+
+  // one room per investor per idea
+  @@unique([ideaId, investorId], name: "ideaId_investorId_room_unique")
+
+  @@index([investorId])
+  @@index([entrepreneurId])
+  @@index([ideaId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  senderId  String
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([read])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
   @@index([createdAt])
 }
 
