@@ -7,10 +7,7 @@ import { Redis } from 'ioredis';
     {
       provide: 'REDIS_CLIENT',
       useFactory: () => {
-        return new Redis({
-          host: process.env.REDIS_HOST || 'localhost',
-          port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
-        });
+        return new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
       },
     },
   ],
