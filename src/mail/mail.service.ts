@@ -15,9 +15,6 @@ export class MailService {
     });
   }
 
-  // --------------------------
-  // Send OTP Email
-  // --------------------------
   async sendOTP(email: string, otp: string) {
     const htmlContent = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 12px; background-color: #f9f9f9; border: 1px solid #e0e0e0; text-align: center;">
@@ -45,18 +42,14 @@ export class MailService {
     `;
 
     await this.transporter.sendMail({
-      from: process.env.MAIL_USER,
+      from: `"Idea-Investor Matcher" <${process.env.MAIL_USER}>`,
       to: email,
       subject: '🔒 Verify Your Email - Idea-Investor Matcher',
       html: htmlContent,
     });
   }
 
-  // --------------------------
-  // Send Reset Password Email
-  // --------------------------
   async sendResetPassword(email: string, resetLink: string) {
-    console.log("Reset link being sent:", resetLink); // Debug log to check the reset link value
     const htmlContent = `
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 12px; background-color: #f9f9f9; border: 1px solid #e0e0e0; text-align: center;">
         <div style="margin-bottom: 30px;">
@@ -66,24 +59,24 @@ export class MailService {
         <p style="color: #374151; font-size: 16px; line-height: 1.5;">
           We received a request to reset your password. Click the button below to set a new password for your account:
         </p>
-       <div style="margin: 25px 0; text-align: center;">
-  <a 
-    href="${resetLink}" 
-    target="_blank"
-    style="
-      display: inline-block;
-      padding: 15px 25px;
-      background-color: #0284c7;
-      color: #ffffff;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 16px;
-    "
-  >
-    Reset Password
-  </a>
-</div>
+        <div style="margin: 25px 0; text-align: center;">
+          
+            href="${resetLink}"
+            target="_blank"
+            style="
+              display: inline-block;
+              padding: 15px 25px;
+              background-color: #0284c7;
+              color: #ffffff;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 16px;
+            "
+          >
+            Reset Password
+          </a>
+        </div>
         <p style="color: #374151; font-size: 14px; margin-bottom: 10px;">
           This link will expire in <strong>10 minutes</strong>. If you did not request a password reset, you can safely ignore this email.
         </p>
@@ -95,7 +88,7 @@ export class MailService {
     `;
 
     await this.transporter.sendMail({
-      from: process.env.MAIL_USER,
+      from: `"Idea-Investor Matcher" <${process.env.MAIL_USER}>`,
       to: email,
       subject: '🔑 Reset Your Password - Idea-Investor Matcher',
       html: htmlContent,
