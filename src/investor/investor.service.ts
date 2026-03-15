@@ -377,9 +377,9 @@ export class InvestorService {
       if (!founder) throw new NotFoundException('Founder not found');
 
       // auto-create chat room between investor and entrepreneur
-      await this.chatService.createRoom(userId, ideaId);
+      const room = await this.chatService.createRoom(userId, ideaId);
 
-      return { message: 'Marked as interested', email: founder.email };
+      return { message: 'Marked as interested', email: founder.email,  chatRoomId: room.id};
     } catch (error) {
       if (error.code !== 'P2002') {
         throw error;
