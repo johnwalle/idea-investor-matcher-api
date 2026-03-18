@@ -186,7 +186,6 @@ export class InvestorService {
       if (industry) {
         where.industry = industry;
       } else if (preferences.industries?.length) {
-
         // Stage
         if (stage) {
           where.stage = stage;
@@ -306,7 +305,6 @@ export class InvestorService {
     return {
       ...idea,
       isInterested: !!interest,
-      email: founder.email,
     };
   }
 
