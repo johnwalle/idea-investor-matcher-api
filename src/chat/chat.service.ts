@@ -128,7 +128,7 @@ export class ChatService {
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1, // last message preview
-          select: { read: true, content: true, createdAt: true, },
+          select: { read: true, content: true, createdAt: true, roomId: true },
         },
       },
       orderBy: { createdAt: 'desc' },
