@@ -28,6 +28,7 @@ model User {
   refreshToken    String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
+  pushTokens PushToken[] 
 
   // Relations
   investorProfile  InvestorProfile?
@@ -188,6 +189,16 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@index([createdAt])
+}
+
+model PushToken {
+  id         String   @id @default(uuid())
+  tokenValue String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  createdAt  DateTime @default(now())
+
+  @@index([userId]) // For faster lookups when notifying a specific user
 }
 
 enum Role {
