@@ -50,6 +50,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // broadcast to everyone in the room
     this.server.to(dto.roomId).emit('newMessage', message);
 
+    const room = await this.chatService.getRoomById(dto.roomId);
+
+    const participants = [room?.investorId, room?.entrepreneurId];
+
+    participants.forEach((userId) => {
+      this.server.to(userId ?? '').emit('chatListUpdate', {
+        roomId: room?.id,
+        lastMessage: message,
+        updatedAt: message.createdAt,
+      });
+    });
+
     // create and emit notification to recipient's personal room
     const notification = await this.chatService.createNotification(
       dto.roomId,
