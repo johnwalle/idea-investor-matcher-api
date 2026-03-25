@@ -135,6 +135,12 @@ export class ChatService {
     });
   }
 
+  async getRoomById(roomId: string) {
+    return this.prisma.chatRoom.findUnique({
+      where: { id: roomId },
+    });
+  }
+
   async getMyNotifications(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },
